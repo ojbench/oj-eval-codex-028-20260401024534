@@ -15,7 +15,24 @@ int main() {
     cin.tie(nullptr);
 
     unordered_map<string, Student> mp;
-    vector<string> ranking; // names in current ranking order
+    struct RankCmp {
+        const unordered_map<string, Student>* pmp{};
+        bool operator()(const string &a, const string &b) const {
+            if (a == b) return false;
+            auto ita = pmp->find(a);
+            auto itb = pmp->find(b);
+            const Student &sa = ita->second;
+            const Student &sb = itb->second;
+            int aa = sa.avg();
+            int bb = sb.avg();
+            if (aa != bb) return aa > bb;
+            for (int i = 0; i < 9; ++i) if (sa.score[i] != sb.score[i]) return sa.score[i] > sb.score[i];
+            return sa.name < sb.name;
+        }
+    };
+    RankCmp cmp{&mp};
+    std::set<string, RankCmp> order(cmp); // maintained up-to-date ordering by scores
+    vector<string> ranking; // names in current ranking order (visible)
     unordered_map<string, int> rank_pos; // name -> 1-based rank
     bool started = false;
     bool dirty = false; // true if scores changed since last ranking build
@@ -43,23 +60,12 @@ int main() {
             s.sum = 0;
             for (int v : sc) s.sum += v;
             mp.emplace(name, std::move(s));
+            order.insert(name);
         } else if (cmd == "START") {
             // Build initial ranking and sort
             ranking.clear();
-            ranking.reserve(mp.size());
-            for (auto &p : mp) ranking.push_back(p.first);
-            auto comp = [&](const string &a, const string &b) {
-                const Student &sa = mp[a];
-                const Student &sb = mp[b];
-                int aa = sa.avg();
-                int bb = sb.avg();
-                if (aa != bb) return aa > bb;
-                for (int i = 0; i < 9; ++i) {
-                    if (sa.score[i] != sb.score[i]) return sa.score[i] > sb.score[i];
-                }
-                return sa.name < sb.name;
-            };
-            sort(ranking.begin(), ranking.end(), comp);
+            ranking.reserve(order.size());
+            for (const auto &name : order) ranking.push_back(name);
             rank_pos.clear();
             for (size_t i = 0; i < ranking.size(); ++i) rank_pos[ranking[i]] = static_cast<int>(i) + 1;
             started = true;
@@ -71,29 +77,22 @@ int main() {
             if (it == mp.end()) {
                 cout << "[Error]Update failed." << '\n';
             } else {
-                // update sum and score
+                // erase from order, update, then re-insert
+                order.erase(name);
                 Student &s = it->second;
                 s.sum -= s.score[code];
                 s.score[code] = score;
                 s.sum += s.score[code];
+                order.insert(name);
                 dirty = true;
             }
         } else if (cmd == "FLUSH") {
             // Re-sort ranking according to current data
             if (!started) continue; // before start, no ranking exists
             if (!dirty) continue;   // no changes since last ranking
-            auto comp = [&](const string &a, const string &b) {
-                const Student &sa = mp[a];
-                const Student &sb = mp[b];
-                int aa = sa.avg();
-                int bb = sb.avg();
-                if (aa != bb) return aa > bb;
-                for (int i = 0; i < 9; ++i) {
-                    if (sa.score[i] != sb.score[i]) return sa.score[i] > sb.score[i];
-                }
-                return sa.name < sb.name;
-            };
-            sort(ranking.begin(), ranking.end(), comp);
+            ranking.clear();
+            ranking.reserve(order.size());
+            for (const auto &name : order) ranking.push_back(name);
             rank_pos.clear();
             for (size_t i = 0; i < ranking.size(); ++i) rank_pos[ranking[i]] = static_cast<int>(i) + 1;
             dirty = false;

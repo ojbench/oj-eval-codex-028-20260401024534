@@ -7,8 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(code main.cpp)
 
-# Optimize for speed and disable sync issues
+# Optimize for speed
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-  target_compile_options(code PRIVATE -O2 -pipe -static-libstdc++ -static-libgcc)
+  target_compile_options(code PRIVATE -O2 -pipe)
 endif()
-

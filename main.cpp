@@ -18,6 +18,7 @@ int main() {
     vector<string> ranking; // names in current ranking order
     unordered_map<string, int> rank_pos; // name -> 1-based rank
     bool started = false;
+    bool dirty = false; // true if scores changed since last ranking build
 
     string cmd;
     while (cin >> cmd) {
@@ -62,6 +63,7 @@ int main() {
             rank_pos.clear();
             for (size_t i = 0; i < ranking.size(); ++i) rank_pos[ranking[i]] = static_cast<int>(i) + 1;
             started = true;
+            dirty = false;
         } else if (cmd == "UPDATE") {
             string name; int code, score;
             cin >> name >> code >> score;
@@ -74,10 +76,12 @@ int main() {
                 s.sum -= s.score[code];
                 s.score[code] = score;
                 s.sum += s.score[code];
+                dirty = true;
             }
         } else if (cmd == "FLUSH") {
             // Re-sort ranking according to current data
             if (!started) continue; // before start, no ranking exists
+            if (!dirty) continue;   // no changes since last ranking
             auto comp = [&](const string &a, const string &b) {
                 const Student &sa = mp[a];
                 const Student &sb = mp[b];
@@ -92,6 +96,7 @@ int main() {
             sort(ranking.begin(), ranking.end(), comp);
             rank_pos.clear();
             for (size_t i = 0; i < ranking.size(); ++i) rank_pos[ranking[i]] = static_cast<int>(i) + 1;
+            dirty = false;
         } else if (cmd == "PRINTLIST") {
             if (!started) continue; // nothing to print before start
             int r = 1;
